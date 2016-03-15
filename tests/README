@@ -1,0 +1,30 @@
+Test 001:
+	.ssh, ssh keys, and their rwx permissions
+
+Test 002:
+	rsa authourized keys and public keys
+
+Test 003:
+	$HOME, $WORK, $STOCKYARD, $SCRATCH 
+
+Test 004:
+	block from submitting jobs
+
+Test 005:
+	allocation
+
+Test 006:
+	home and work quota
+
+Test 007:
+	module environment
+
+Test 008:
+	compiler environment
+
+Test 009:
+	scheduler command
+
+Test ???:
+        rsh to ARCHIVER
+

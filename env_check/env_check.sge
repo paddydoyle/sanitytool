@@ -1,0 +1,8 @@
+#! /bin/bash
+#@ -S /bin/bash
+#@ -q normal
+
+for host in `cat $TMP/machines`
+do
+  ssh $host "echo 'ENV_CHECK' >>$HOME/TACC_env_check.out"
+done  

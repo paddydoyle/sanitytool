@@ -1,0 +1,96 @@
+#!/bin/bash
+
+#version 1.1 
+#Last updated on Aug 6
+
+# Small tools checking whether and why a user is blocked on Stampede.
+# Please contact Si Liu (siliu@tacc.utexas.edu)
+# If you have any questions or concerns.
+
+if [ "$#" -ne 1 ];
+then 
+        echo "Illegal number of parameters!"
+	echo "Please launch the command as: whyblock joe"
+        echo "or list all blocked users by: whyblock all"
+        echo "   "
+        echo "Contact Si Liu for any questions or concerns."
+        exit
+fi
+
+if [ "$1" == "-h" ] || [ "$1" == "-H" ] || [ "$1" == "--help" ] ;
+then
+	echo "TACC tool to check why a user is blocked on Stampede"
+	echo "Please launch the command as: whyblock joe"
+	echo "or list all users prevented from submission: whyblock all"
+	echo "whyblock -h or whyblock --help for this help information"
+	echo "   "
+	echo "Contact Si Liu (siliu@tacc.utexas.edu) for any questions or concerns."
+	exit
+fi
+
+if [ "$1" == "all" ] || [ "$1" == "All" ] || [ "$1" == "ALL" ] ;
+then
+	echo "Users who can not submit jobs:"
+	grep "ALL" /etc/slurm/tacc_filter_options
+	echo ""
+	echo "users who can not use largememory queue"
+	grep "^largemem" /etc/slurm/tacc_filter_options
+	echo ""
+	echo "user who can not Xeon-Phi queue"
+	grep "^normal-" /etc/slurm/tacc_filter_options
+	exit 
+fi
+
+user=`echo $1 | tr '[:upper:]' '[:lower:]'`
+userinfo=`/bin/awk -F: -v user="$user" '$1 == user {print $0}' </etc/passwd `
+
+if [[ -z $userinfo ]]; then
+	echo "$user is not a known user."
+	exit
+else
+	echo -e "User info:\n"$userinfo
+	echo ""
+fi
+
+### Can not login: blocked by Stampede administrators
+block_login=`grep "bin_" /etc/passwd | /bin/awk -F: -v user="$user" '$1 == user'`
+### echo $block_login
+if [[ -n $block_login ]]; then
+	echo "The user $user's account is locked."
+	echo "Please check https://tas.tacc.utexas.edu/TACCAdministration/ for more details."
+	exit 
+fi
+
+###Old checking rules:
+###block_normal=`awk '/ALL = /,/ALL = /' /etc/slurm/tacc_filter_options  | grep $user`
+###block_large=`grep "^largemem" /etc/slurm/tacc_filter_options | grep $user`
+
+##Whether the user is blocked from general submission:
+block_normal=`awk '/ALL = /,/ALL = /' /etc/slurm/tacc_filter_options | awk '{gsub(/ /, "", $0); print substr($0,7,length($0)-7)}' | awk -v user="$user" 'BEGIN {FS="!!"}; {for (i=1; i<=NF; i++) if ($i == user) {print $0}}'`
+##whether the user is blocked from largemem queue submission:
+block_large=`awk '($1=="largemem")' /etc/slurm/tacc_filter_options | awk '{gsub(/ /, "", $0);print substr($0,12, length($0)-12)}' |  awk -v user="$user" 'BEGIN {FS="!!"}; {for (i=1; i<=NF; i++) if ($i == user) {print $0}}'`
+##whether the user is blocked from mic queue submission
+block_mic=`awk '($1=="normal-mic" || $1=="normal-2mic")' /etc/slurm/tacc_filter_options | awk '{gsub(/ /, "", $0); print substr($0,14, length($0)-14)}' |  awk -v user="$user" 'BEGIN {FS="!!"}; {for (i=1; i<=NF; i++) if ($i == user) {print $0}}'`
+
+if [[ -n $block_large ]]; then
+                echo "$user is not allowed to submit largemem jobs on Stampede."
+                echo  "Possible block reason from Stampede Administrators:" 
+                awk '/# Disabled/,/ALL = /' /etc/slurm/tacc_filter_options  | grep $user
+fi
+
+if [[ -n $block_normal ]]; then
+                echo "$user is not allowed to submit jobs on Stampede."
+                echo "Possible block reason from Stampede Administrators:" 
+                awk '/# Disabled/,/ALL = /' /etc/slurm/tacc_filter_options  | grep $user | sed '$d'
+fi
+
+if [[ -n $block_mic ]]; then
+                echo "$user is not allowed to submit Xeon-Phi (MIC) jobs on Stampede."
+                echo "Possible block reason from Stampede Administrators:" 
+                awk '/# Disabled/,/ALL = /' /etc/slurm/tacc_filter_options  | grep $user | sed '$d'
+fi
+
+if [[ -z $block_normal && -z $block_large && -z $block_mic ]]; then
+	echo "$user is NOT blocked by the system administrators at this time."
+fi
+

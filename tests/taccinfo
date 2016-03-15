@@ -1,0 +1,225 @@
+#!/usr/bin/perl
+use Switch;
+use List::Util qw(min max);
+use POSIX qw(ceil floor);
+###use Quota;
+
+@LustreFilesystems=("/home1","/work");
+$TACC_ACCT_LOC="/usr/local/etc/";
+$MACHINE="Stampede";
+
+my %blocksize;
+$blocksize{"M"}=1024;
+$blocksize{"G"}=1024*1024;
+$blocksize{"T"}=1024*1024*1024;
+
+foreach (@ARGV) {
+  if(/-(\S+)=(\S+)/) {
+    switch($1) {
+      case "size" { $size = $2; }
+      case "user" { $USER = $2; }
+    };
+  } 
+  elsif(/-?/ or /-help/) {
+    print "taccinfo: TACC User Information\n";
+    print "Usage: taccinfo [-size={k|m|g|t}] [-user=<userid>] [-?] [-help]\n";
+    print "Options: -size={m|g|t}   Display quota size information in:\n";
+    print "                             (M)egabytes\n";
+    print "                             (G)igabytes\n";
+    print "                             (T)erabytes\n";
+    print "         -user=<userid>    Display information for user <userid>\n";
+    print "                             (requires appropriate permissions)\n";
+    print "         -? -help          Display this information\n";
+    exit;
+  } else { print STDERR "Error: Unknown option $_\n" and exit; }
+}
+
+chomp($USER=`whoami`) unless (defined $USER);
+chomp($UID=`/bin/sh -c "id -u $USER 2>/dev/null"`);
+
+# NOOP for root
+
+unless($UID =~ /\d+/) { print "Error: Unknown user $USER\n" and exit; }
+
+chomp($CALLER=`whoami`);
+
+# Decide on which map files to query; to support the
+# vis subsystem (spur), we will query spur map files
+# on the spur login node, and ranger map files elsewhere.
+
+chomp($machine=`hostname -s`);
+
+if( "$machine" eq "spur" ) {
+    $prefix="spur_";
+} else {
+    $prefix="";
+}
+
+$proj_map        = "$prefix" . "project.map";
+$projuser_map    = "$prefix" . "projectuser.map";
+$projbalance_map = "$prefix" . "projectbalance.map";
+$usage_map       = "$prefix" . "usage.map";
+
+
+if ( -e "$TACC_ACCT_LOC/$projuser_map" ) {
+    if(`grep -e "^$USER " $TACC_ACCT_LOC/$projuser_map` =~ /^\s*(\S+)\s+([\S\s]+)\n$/) {
+	if("$1" eq "$USER") {
+	    foreach (split / /, $2) {
+		if(/\d+/) {
+		    @temp = split / /, `grep -e "$_\$" $TACC_ACCT_LOC/$proj_map`;
+        if($temp[1] == $_) {
+	    chomp($prj_name{$_} = $temp[0]);
+        }
+		    @temp = split / /, `grep -e "^$_ " $TACC_ACCT_LOC/$projbalance_map`;
+		    if($temp[0] == $_) { 
+			chomp($prj_bal{$_} =  $temp[1]);
+		    }
+		    @temp = split /:/, `/bin/sh -c "grep $MACHINE $TACC_ACCT_LOC/$usage_map | grep $prj_name{$_}" 2>/dev/null`;
+		    if($temp[0] == $prj_name{$_}) {
+			chomp($prj_exp{$_} = $temp[3]);
+		    } 
+		}
+	    }
+	}
+    }
+}
+
+my $outstring = "Project balances for user $USER";
+my $strsize   = length($outstring);
+my $lsize     = int(0.5*(79 - 2 - $strsize));
+my $rsize      = 79 - 2 - $lsize - $strsize;
+
+for(my $i=0;$i<$lsize;$i++) {
+    print "-";
+}
+
+print " $outstring ";
+
+for($i=0;$i<$rsize;$i++) {
+    print "-";
+}
+
+print "\n";
+
+my $num_projects = scalar(keys (%prj_name));
+my $num_rows = int($num_projects / 2);
+my $num_headers = min(2,$num_projects);
+
+#print "number of projects = $num_projects\n";
+#print "number of headers  = $num_headers\n";
+
+my $count=0;
+
+print "|";
+for($i=1;$i<=$num_headers;$i++) {
+    printf " %-13s %10s %11s |", "Name", "Avail SUs", "Expires";
+}
+
+# koomie mod: account for user with no active projects
+
+if($num_headers == 0) {    printf "%26s %s %26s"," ","-- No Active Projects --","|"; }
+    
+if ($num_headers == 1) 
+  {
+    printf "%39s","|";
+  }
+
+print "\n";
+
+$count=0;
+
+foreach (keys %prj_name) {
+    $count++;
+    if ($count == 1) { 
+      print "| ";
+    }
+    printf "%-13s  %9.0f %11s | ", $prj_name{$_}, $prj_bal{$_}, $prj_exp{$_};
+    if($count == 2) {
+	print "\n";
+	$count = 0;
+    }
+}
+
+if($count != 2 && $count != 0 ) { printf "%38s\n", "|"; }
+
+eval {
+  local $SIG{ALRM} = sub { die "alarm\n" };
+
+  alarm 5;
+
+  # ks update: 1/29/11 - use quota module directly and save only what
+  # we want.  Info to save is:
+  # 
+  # fs-name current_blocks hard_block_limit current_inodes hard_inode_limit
+
+  foreach (@NFSFilesystems) {
+    $arg = Quota::getqcarg("$_");
+#    $uid = getpwnam("$USER");
+    
+    ($block_curr, $block_soft, $block_hard, $block_timelimit,
+     $inode_curr, $inode_soft, $inode_hard, $inode_timelimit) = 
+	 Quota::query($arg,$UID);
+
+    $quota{$_}="$block_curr $block_hard $inode_curr $inode_hard";
+  }
+
+  foreach (@LustreFilesystems) {
+      $igot=`lfs quota -u $USER $_ 2>/dev/null | head -3 | tail -1`;
+      if( $igot =~ m/\s*(\S+)\s*(\S+)\s*(\S+)\s*(\S+)\s*(\S+)\s*(\S+)\s*(\S+)\s*(\S+)/ ) { 
+	  $quota{$_}="$2 $4 $6 $8\n";
+      }
+  }
+
+  alarm 0;
+};
+
+if($@) {
+  print "ERROR: Unable to query filesysem information. Exiting...\n" and exit unless $@ eq "alarm\n";
+}
+
+my $outstring = "Disk quotas for user $USER";
+my $strsize   = length($outstring);
+my $lsize     = int(0.5*(79 - 2 - $strsize));
+my $rsize      = 79 - 2 - $lsize - $strsize;
+
+
+print " $outstring ";
+print "\n";
+
+
+if(keys %quota) {
+  printf "| %-13s%10s%10s%9s%13s%12s%8s |\n", "Disk", "Usage (".$size."B)", "Limit", "%Used", "File Usage", "Limit", "%Used";
+  foreach (keys %quota) {
+    if($quota{$_} =~ /^\s*(\S+)\s+(\S+)\s+(\S+)\s+(\S+)\s*$/) {
+	$q_size{$_} = $2;
+    }
+  }
+}
+foreach (sort {$q_size{$a} <=> $q_size{$b}} keys %q_size) {
+
+#foreach ( keys %quota) {
+
+#    print "$quota{$_}\n";
+
+  if($quota{$_} =~ /^\s*(\S+)\s+(\S+)\s+(\S+)\s+(\S+)\s*$/) {
+
+      $blocks_used = $1;
+      $block_limit = $2;
+      $inodes_used = $3;
+      $inode_limit = $4;
+
+    if($block_limit == 0) { $percent_space = 0; } 
+      else { $percent_space = $blocks_used/$block_limit*100; } 
+
+    if($inode_limit == 0) { $percent_files = 0; } 
+      else { $percent_files = $inodes_used/$inode_limit*100; } 
+
+    $fsname = $_;
+    if($percent_files > 100 or $percent_space>100) { $fsname = $fsname."*"; }
+    printf "| %-9s", $_;
+    printf "%14.1f %9.1f", $blocks_used/$blocksize{$size}, $block_limit/$blocksize{$size};
+    printf "%9.2f%13s%12s%8.2f |\n", $percent_space, $inodes_used, $inode_limit, $percent_files;
+  }
+
+}
+

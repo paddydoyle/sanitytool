@@ -1,0 +1,47 @@
+#!/bin/bash
+
+if [ "$#" -ne 1 ];
+then 
+        echo "Illegal number of parameters"
+	echo "Please launch the command as: whyblock joe"
+        echo "or list  all blocked users by: whyblock all"
+        echo "   "
+        echo "Contact Si Liu for any questions or concerns."
+        exit
+fi
+
+if [ "$1" == "-h" ] || [ "$1" == "-H" ] || [ "$1" == "--help" ] ;
+then
+	echo "TACC tool to check why a user is blocked on Stampede"
+	echo "Please launch the command as: whyblock joe"
+	echo "or list  all blocked users by: whyblock all"
+	echo "whyblock -h or whyblock --help for this help inforamtion"
+	echo "   "
+	echo "Contact Si Liu for any questions or concerns."
+	exit
+fi
+
+if [ "$1" == "all" ] || [ "$1" == "All" ] || [ "$1" == "ALL" ] ;
+then
+	echo "Current blocked users on Stampede:"
+	grep ALL  /etc/slurm/tacc_filter_options
+	exit 
+fi
+
+user=`echo $1 | tr '[:upper:]' '[:lower:]'`
+userinfo=`/bin/awk -F: -v user="$user" '$1 == user {print $0}' </etc/passwd `
+
+if [[ -z $userinfo ]]; then
+	echo "$user is not a known user."
+else
+	echo -e "User info:\n"$userinfo
+fi
+
+block=`awk '/ALL = /,/ALL = /' /etc/slurm/tacc_filter_options  | grep $user`
+
+if [[ -z $block ]]; then
+	echo "$user is NOT blocked by the system administrators at this time."
+else 
+	echo -e "\nTommy's block notes:" 
+        awk '/# Disabled/,/ALL = /' /etc/slurm/tacc_filter_options  | grep $user
+fi
