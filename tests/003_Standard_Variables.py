@@ -14,21 +14,23 @@ class Standard_Variables(TestBase):
   def setup(self):
     pass
 
-  def description(self):
-    return "Report Standard Variables, and check file system availability:"
+  def name(self):
+    return "Check pre-defined variables and corresponding file system accessibility"
 
-  def help(self):
-    pass
+  def description(self):
+    return "Check environment variables (e.g. HOME, WORK, SCRATCH) and file system access:"
 
   def error(self):
-    print(self.error_message)
-    exit
+    print("\033[1;31m%s\033[0m" %(self.error_message))
 
+  def help(self):
+    print("\tPlease make sure necessary Environment Variables have been defined.\n")
   def execute(self):
     # Different variable are necessary on different machines.
     standardVarT = {
       'stampede' : [ "HOME", "WORK", "STOCKYARD", "SCRATCH" ],
       'ls4'      : [ "HOME", "WORK", "SCRATCH" ],
+      'ls5'      : [ "HOME", "WORK", "STOCKYARD", "SCRATCH" ],
       'maverick' : [ "HOME", "WORK", "STOCKYARD" ],
       }
 
@@ -49,13 +51,13 @@ class Standard_Variables(TestBase):
     for var in varA:
       value = os.environ.get(var,unknown)
       if (value == unknown):
-	temp_string="        ERROR: Your $"+var+" is not defined.\n"
+	temp_string="\tError: Your $"+var+" is not defined.\n"
 	self.error_message+=temp_string
         result = False
       elif( os.path.exists(value) ):
         pass
       else:
-	temp_string="        ERROR: Your $" + var + " space(" + value + ") is not accessible at this time!\n"
+	temp_string="\tError: Your $" + var + " space(" + value + ") is not accessible at this time!\n"
 	self.error_message+=temp_string
         result=False 	
 
@@ -67,6 +69,3 @@ class Standard_Variables(TestBase):
 #	print("my path does not exist")
 	
     return result
-
-  def name(self):
-    return "Standard Variables"

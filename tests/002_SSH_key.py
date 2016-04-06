@@ -13,14 +13,17 @@ class SSH_key(TestBase):
   def setup(self):
     pass
 
+  def name(self):
+    return "Check SSH keys"
+
   def description(self):
-    return "SSH Key Test:"
+    return "Check SSH keys:"
 
   def error(self):
-    print(self.error_message)
+    print("\033[1;31m%s\033[0m" %(self.error_message))
 
   def help(self):
-    print("        Please check your .ssh directory, and append the contents of ~/.ssh/id_rsa.pub to ~/.ssh/authorized_keys.\n")
+    print("\tPlease check your .ssh directory, and append the contents of ~/.ssh/id_rsa.pub to ~/.ssh/authorized_keys.\n")
 
   def execute(self):
     result  = True
@@ -29,16 +32,13 @@ class SSH_key(TestBase):
     status  = run_cmd(cmd)
 
     if (status != 0):
-      self.error_message+="        Error: ~/.ssh/id_rsa.pub not found in ~/.ssh/authorized_keys.\n"
+      self.error_message+="\tError: ~/.ssh/id_rsa.pub not found in ~/.ssh/authorized_keys.\n"
       return False 
 
     cmd2    ="awk '{if ($1!=\"ssh-dss\" && $1!=\"ssh-rsa\" || NF <= 1) print $0}' ~/.ssh/authorized_keys"
     cmd2_out = capture(cmd2)
     if cmd2_out:
-	self.error_message+="        Error: ~/.ssh/authorized_keys includes invalid or broken key(s).\n"
+	self.error_message+="\tError: ~/.ssh/authorized_keys includes invalid or broken key(s).\n"
 	return False;
      
     return result
- 
-  def name(self):
-    return "SSH Key"

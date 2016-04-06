@@ -1,0 +1,40 @@
+from __future__ import print_function
+from TestBase   import TestBase 
+from util       import run_cmd, capture, syshost
+import os
+
+class Standard_Variables(TestBase): 
+  
+  #Keep the error message and print it when necessary
+  error_message=""
+
+  def __init__(self):
+    pass
+
+  def setup(self):
+    pass
+
+  def name(self):
+    return "Define INTEL_LICENSE_FILE to Intel compilers"
+
+  def description(self):
+    return "Check Compiler License "
+
+  def help(self):
+    pass
+
+  def error(self):
+      print("\033[1;31m%s\033[0m" %(self.error_message))
+      exit
+
+  def execute(self):
+    host=syshost()
+    if (host=="stampede" or host=="ls5"):
+      license_variable=["INTEL_LICENSE_FILE"]
+    else:
+        return True
+
+      Flag=True
+
+    result = True
+    unknown = "**UNKNOWN**"

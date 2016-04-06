@@ -11,11 +11,17 @@ class Block_User(TestBase):
   def setup(self):
     pass
 
+  def name(self):
+    return "Check user's queue accessibility"
+
   def description(self):
-    return "Whether blocked from submitting jobs on the system (Stampede Only)"
+    return "Check user's queue accessibility (Stampede Only):"
 
   def error(self):
-    print(self.error_message)
+     print("\033[1;31m%s\033[0m" %(self.error_message))
+
+  def help(self):
+      print("\tYou are blocked by the system administratots, please contact TACC for help.\n")
 
   def execute(self):
     host = syshost()
@@ -44,23 +50,16 @@ class Block_User(TestBase):
    
     for ss in myrecord1:
 	if ss and not ss.strip().startswith('#'):
-		self.error_message+="        ERROR: You are blocked from general submission.\n"
+		self.error_message+="\tError: You are blocked from general submission.\n"
 		return False
     for ss in myrecord2:
         if ss and not ss.strip().startswith('#'):
-                self.error_message+="        ERROR: You are blocked from largemem queue submission.\n"
+                self.error_message+="\tError: You are blocked from largemem queue submission.\n"
                 return False
 
     for ss in myrecord3:
         if ss and not ss.strip().startswith('#'):
-                self.error_message+="        ERROR: You are blocked from mic queue submission.\n"
+                self.error_message+="\tError: You are blocked from mic queue submission.\n"
                 return False
-
-
+    
     return True
-  
-  def help(self):
-      print("        You are blocked by the system administratots, please contact TACC for help.\n")
-
-  def name(self):
-    return "Check whether blocked from submitting jobs"

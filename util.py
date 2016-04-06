@@ -18,9 +18,12 @@ def run_cmd(cmd):
 import platform
 
 def syshost():
-  hostA = platform.node().split('.')
+# hostA = platform.node().split('.')
+  hostlong = capture("hostname --long")
+  hostA = hostlong.split('.')
   idx = 1 #Si changed this from 2 to 1
   if (len(hostA) < 2):
     idx = 0
+# print hostA[idx]
 
   return hostA[idx]
