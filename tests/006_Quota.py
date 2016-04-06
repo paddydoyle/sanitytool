@@ -48,7 +48,8 @@ class Quota(TestBase):
           quotainfo=rawinfo[-2].split()     
 ##	  print(quotainfo[0],quotainfo[2],quotainfo[3],quotainfo[5])          
 ##        print(quotainfo)
-	  if len(quotainfo) <6:
+##	  if len(quotainfo) <6:
+          if len(quotainfo) <6 or (not (quotainfo[0]).isdigit()):
             self.error_message+="\tError: "+"No valid quota report\n"
             return False
           if float(quotainfo[0]) >= float(quotainfo[2])*0.95 :
