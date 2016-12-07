@@ -35,7 +35,8 @@ class SSH_key(TestBase):
       self.error_message+="\tError: ~/.ssh/id_rsa.pub not found in ~/.ssh/authorized_keys.\n"
       return False 
 
-    cmd2    ="awk '{if ($1!=\"ssh-dss\" && $1!=\"ssh-rsa\" || NF <= 1) print $0}' ~/.ssh/authorized_keys"
+    # skip blank lines and comment lines
+    cmd2    ="awk '(length($0) && ($0 !~ \"^#\")) {if ($1!=\"ssh-dss\" && $1!=\"ssh-rsa\" || NF <= 1) print $0}' ~/.ssh/authorized_keys"
     cmd2_out = capture(cmd2)
     if cmd2_out:
 	self.error_message+="\tError: ~/.ssh/authorized_keys includes invalid or broken key(s).\n"
