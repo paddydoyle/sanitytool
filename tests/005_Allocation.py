@@ -2,6 +2,7 @@ from __future__ import print_function
 from TestBase   import TestBase
 from util       import run_cmd, capture,syshost
 from datetime import *
+import getpass
 
 class Allocation(TestBase):
   
@@ -26,7 +27,7 @@ class Allocation(TestBase):
     print("\tPlease renew your allocations.\n")
 
   def execute(self):
-      userid=capture("whoami").rstrip()
+      userid=getpass.getuser()
 ###   userid="jkatzene"      #Fake test 
       
       host=syshost()

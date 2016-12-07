@@ -1,6 +1,8 @@
 from __future__ import print_function
 from TestBase   import TestBase
 from util       import run_cmd, capture,syshost
+import getpass
+
 class Block_User(TestBase):
  
   error_message=""
@@ -28,7 +30,7 @@ class Block_User(TestBase):
     if host!="stampede":
       return True
 
-    userid=capture("whoami").rstrip()
+    userid=getpass.getuser()
     
     grepcmd1="""awk '/ALL = /,/ALL = /' /etc/slurm/tacc_filter_options | awk '{print substr($0,7,length($0)-7)}' | awk -v user=%s 'BEGIN {FS=" !!"}; {for (i=1; i<=NF; i++) if($i == user) {print $0}}'""" %userid      
 #    print(grepcmd1)

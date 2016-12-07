@@ -1,7 +1,7 @@
 from __future__ import print_function
 from TestBase import TestBase 
 from util       import run_cmd, capture
-import stat, os
+import stat, os, getpass
 
 class SSH_Perm(TestBase):
   
@@ -67,15 +67,13 @@ class SSH_Perm(TestBase):
   def execute(self):
     result = True
 
- #  home = os.environ['HOME']
-    userid=capture("whoami").rstrip()
- #  grepcmd="grep %s /etc/passwd | cut -d ':' -f6" %userid
-    grepcmd="/bin/awk -F: -v user=%s '$1 == user {print $6}' </etc/passwd" %userid
-    home=capture(grepcmd)
+    home=os.path.expanduser('~')
+
+    userid=getpass.getuser()
+
     if not home:
         self.error_message+="\tError: Your home directory is inaccessible!\n"
         return False
-    home=home[:-1]
 
     sshD = os.path.join(home,".ssh")
     dirA = [ home, sshD ]

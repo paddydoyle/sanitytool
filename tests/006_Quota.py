@@ -1,6 +1,7 @@
 from __future__ import print_function
 from TestBase   import TestBase
 from util       import run_cmd, capture,syshost
+import getpass
 
 class Quota(TestBase):
   
@@ -25,7 +26,7 @@ class Quota(TestBase):
       print("\tPlease remove unnecessary files to clean your spaces.\n")
 
   def execute(self):
-      userid=capture("whoami").rstrip()
+      userid=getpass.getuser()
       host=syshost()
      
       if (host=="stampede" or host=="ls5"):
